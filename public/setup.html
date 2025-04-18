@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Display Setup</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+
+        .setup-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .display-setup {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #90CAF9;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background: #3a3a3a;
+            color: white;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .camera-preview {
+            width: 320px;
+            height: 240px;
+            background: #000;
+            margin-top: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .camera-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .display-links {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+
+        .display-link {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #3a3a3a;
+            border-radius: 5px;
+            color: white;
+            text-decoration: none;
+        }
+
+        .display-link:hover {
+            background: #444;
+        }
+
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <h1>Multi-Display Face Tracking Setup</h1>
+        
+        <div class="display-setup">
+            <h2>Display Configuration</h2>
+            <div class="form-group">
+                <label for="num-displays">Number of Displays:</label>
+                <select id="num-displays">
+                    <option value="2">2 (Side by Side)</option>
+                    <option value="4">4 (2x2 Grid)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="arrangement">Display Arrangement:</label>
+                <select id="arrangement">
+                    <option value="horizontal">Horizontal (Side by Side)</option>
+                    <option value="vertical">Vertical (Stacked)</option>
+                    <option value="grid">Grid (2x2)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="display-setup">
+            <h2>Camera Configuration</h2>
+            <div id="camera-list">
+                Loading cameras...
+            </div>
+        </div>
+        
+        <div class="display-links">
+            <h2>Display Links</h2>
+            <p>Open these links on each of your displays:</p>
+            <div id="display-links">
+                <a href="/?display=display1" class="display-link" target="_blank">Display 1</a>
+                <a href="/?display=display2" class="display-link" target="_blank">Display 2</a>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>Setup Instructions</h2>
+            <ol>
+                <li>Connect all your displays to your computer and extend your desktop across them.</li>
+                <li>Connect your webcams (one for each display) and ensure they're recognized.</li>
+                <li>Use the links above to open the tracking interface on each display.</li>
+                <li>Position each webcam above or below its corresponding display.</li>
+                <li>For best results, ensure similar lighting conditions across all displays.</li>
+            </ol>
+            
+            <h3>How it Works</h3>
+            <p>When a face approaches the edge of one display, the system will detect this and show a transition effect on the adjacent display. The emoji will follow your face across all connected displays, creating a seamless multi-display experience.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Get available cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                const cameraListDiv = document.getElementById('camera-list');
+                if (videoDevices.length === 0) {
+                    cameraListDiv.innerHTML = '<p>No cameras detected. Please connect at least one webcam.</p>';
+                    return;
+                }
+                
+                let cameraHtml = '';
+                videoDevices.forEach((device, index) => {
+                    const label = device.label || `Camera ${index + 1}`;
+                    cameraHtml += `
+                        <div class="form-group">
+                            <label>Camera ${index + 1}: ${label}</label>
+                            <div class="camera-preview">
+                                <video id="preview-${index}" autoplay muted></video>
+                            </div>
+                            <div class="form-group">
+                                <label>Assign to Display:</label>
+                                <select id="camera-${index}-display">
+                                    <option value="display1">Display 1</option>
+                                    <option value="display2" ${index === 1 ? 'selected' : ''}>Display 2</option>
+                                    ${videoDevices.length > 2 ? '<option value="display3">Display 3</option>' : ''}
+                                    ${videoDevices.length > 3 ? '<option value="display4">Display 4</option>' : ''}
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                cameraHtml += '<button id="save-config">Save Configuration</button>';
+                cameraListDiv.innerHTML = cameraHtml;
+                
+                // Start camera previews
+                for (let i = 0; i < videoDevices.length; i++) {
+                    const preview = document.getElementById(`preview-${i}`);
+                    if (preview) {
+                        try {
+                            const stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    deviceId: { exact: videoDevices[i].deviceId },
+                                    width: 320,
+                                    height: 240
+                                }
+                            });
+                            preview.srcObject = stream;
+                        } catch (err) {
+                            console.error(`Error accessing camera ${i}:`, err);
+                        }
+                    }
+                }
+                
+                // Update display links based on camera assignments
+                document.getElementById('save-config').addEventListener('click', () => {
+                    const displayLinks = document.getElementById('display-links');
+                    displayLinks.innerHTML = '';
+                    
+                    const assignments = {};
+                    videoDevices.forEach((device, index) => {
+                        const select = document.getElementById(`camera-${index}-display`);
+                        if (select) {
+                            const displayId = select.value;
+                            assignments[displayId] = device.deviceId;
+                        }
+                    });
+                    
+                    Object.keys(assignments).sort().forEach(displayId => {
+                        const cameraId = assignments[displayId];
+                        const link = document.createElement('a');
+                        link.href = `/?display=${displayId}&camera=${videoDevices.findIndex(d => d.deviceId === cameraId)}`;
+                        link.className = 'display-link';
+                        link.target = '_blank';
+                        link.textContent = `${displayId.charAt(0).toUpperCase() + displayId.slice(1)} (${videoDevices.find(d => d.deviceId === cameraId).label || 'Camera'})`;
+                        displayLinks.appendChild(link);
+                    });
+                    
+                    alert('Configuration saved! Use the updated links to open each display.');
+                });
+                
+                // Update number of display links when the number of displays changes
+                document.getElementById('num-displays').addEventListener('change', e => {
+                    const numDisplays = parseInt(e.target.value, 10);
+                    const displayLinks = document.getElementById('display-links');
+                    
+                    displayLinks.innerHTML = '';
+                    for (let i = 1; i <= numDisplays; i++) {
+                        const link = document.createElement('a');
+                        link.href = `/?display=display${i}`;
+                        link.className = 'display-link';
+                        link.target = '_blank';
+                        link.textContent = `Display ${i}`;
+                        displayLinks.appendChild(link);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Setup error:', error);
+                document.getElementById('camera-list').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html> 
