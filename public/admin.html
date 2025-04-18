@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Multi-Display Face Tracking</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="setup-container">
+        <h1>Multi-Display Face Tracking System</h1>
+        <h2>Admin Panel</h2>
+
+        <div class="form-group">
+            <label for="numDisplays">Number of Displays:</label>
+            <input type="number" id="numDisplays" min="1" max="9" value="2">
+        </div>
+
+        <div class="form-group">
+            <label for="arrangement">Display Arrangement:</label>
+            <select id="arrangement">
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+                <option value="grid">Grid</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="emojiSelect">Emoji to Display:</label>
+            <select id="emojiSelect">
+                <option value="😀">😀 Smiling Face</option>
+                <option value="🐱">🐱 Cat Face</option>
+                <option value="🚀">🚀 Rocket</option>
+                <option value="🔮">🔮 Crystal Ball</option>
+                <option value="👻">👻 Ghost</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <h3>Camera Selection</h3>
+            <div id="cameras-container"></div>
+            <div id="cameraPreview" class="camera-preview">
+                <video id="previewVideo" autoplay muted></video>
+            </div>
+        </div>
+
+        <button id="saveBtn">Save Configuration</button>
+
+        <div class="display-list">
+            <h3>Display Links</h3>
+            <div id="displayLinks"></div>
+        </div>
+    </div>
+
+    <script>
+        // Socket connection
+        const socket = io();
+        let videoDevices = [];
+        let selectedCamera = null;
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const numDisplaysInput = document.getElementById('numDisplays');
+            const arrangementSelect = document.getElementById('arrangement');
+            const emojiSelect = document.getElementById('emojiSelect');
+            const camerasContainer = document.getElementById('cameras-container');
+            const displayLinksContainer = document.getElementById('displayLinks');
+            const saveBtn = document.getElementById('saveBtn');
+            const previewVideo = document.getElementById('previewVideo');
+
+            // Enumerate camera devices
+            async function enumerateVideoDevices() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    // Create radio buttons for each camera
+                    camerasContainer.innerHTML = '';
+                    videoDevices.forEach((device, index) => {
+                        const radioContainer = document.createElement('div');
+                        radioContainer.className = 'radio-container';
+                        
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.name = 'camera';
+                        radioInput.id = `camera-${index}`;
+                        radioInput.value = device.deviceId;
+                        radioInput.checked = index === 0;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = `camera-${index}`;
+                        label.textContent = device.label || `Camera ${index + 1}`;
+                        
+                        radioContainer.appendChild(radioInput);
+                        radioContainer.appendChild(label);
+                        camerasContainer.appendChild(radioContainer);
+                        
+                        radioInput.addEventListener('change', () => {
+                            if (radioInput.checked) {
+                                selectedCamera = device.deviceId;
+                                showCameraPreview(selectedCamera);
+                            }
+                        });
+                    });
+                    
+                    // Set initial camera
+                    if (videoDevices.length > 0) {
+                        selectedCamera = videoDevices[0].deviceId;
+                        showCameraPreview(selectedCamera);
+                    }
+                } catch (error) {
+                    console.error('Error enumerating video devices:', error);
+                    camerasContainer.innerHTML = '<p class="error">Error accessing cameras. Please ensure camera permissions are granted.</p>';
+                }
+            }
+
+            // Show camera preview
+            async function showCameraPreview(deviceId) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: deviceId } }
+                    });
+                    
+                    if (previewVideo.srcObject) {
+                        previewVideo.srcObject.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    previewVideo.srcObject = stream;
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                }
+            }
+
+            // Update display links
+            function updateDisplayLinks() {
+                const numDisplays = parseInt(numDisplaysInput.value);
+                const arrangement = arrangementSelect.value;
+                const emoji = emojiSelect.value;
+                
+                displayLinksContainer.innerHTML = '';
+                
+                for (let i = 1; i <= numDisplays; i++) {
+                    const displayItem = document.createElement('div');
+                    displayItem.className = 'display-item';
+                    
+                    const displayInfo = document.createElement('div');
+                    displayInfo.textContent = `Display ${i}`;
+                    
+                    const link = document.createElement('a');
+                    link.href = `/?display=${i}&arrangement=${arrangement}&emoji=${encodeURIComponent(emoji)}&camera=${selectedCamera}`;
+                    link.textContent = 'Open Display';
+                    link.className = 'launch-btn';
+                    link.target = '_blank';
+                    
+                    displayItem.appendChild(displayInfo);
+                    displayItem.appendChild(link);
+                    displayLinksContainer.appendChild(displayItem);
+                }
+            }
+
+            // Save configuration
+            saveBtn.addEventListener('click', function() {
+                const arrangement = arrangementSelect.value;
+                socket.emit('set_display_arrangement', arrangement);
+                updateDisplayLinks();
+            });
+
+            // Initialize camera enumeration
+            enumerateVideoDevices();
+            
+            // Add listeners for display configuration changes
+            numDisplaysInput.addEventListener('change', updateDisplayLinks);
+            arrangementSelect.addEventListener('change', updateDisplayLinks);
+            emojiSelect.addEventListener('change', updateDisplayLinks);
+        });
+    </script>
+</body>
+</html> 
