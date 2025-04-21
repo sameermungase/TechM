@@ -373,6 +373,10 @@ async function startApp() {
     
     console.log('Camera access granted');
     elements.video.srcObject = stream;
+    
+    // Mirror the video horizontally
+    elements.video.style.transform = 'scaleX(-1)';
+    
     removeLoadingMessage();
     
     // Initialize UI components
@@ -413,7 +417,8 @@ function initializeFaceDetection() {
   Object.assign(canvas.style, {
     position: 'absolute',
     top: '0',
-    left: '0'
+    left: '0',
+    transform: 'scaleX(-1)' // Mirror the canvas to match the video
   });
 
   // Initialize emoji position in the center
@@ -448,7 +453,11 @@ async function detectFaces() {
 
     // Process detections
     const resizedDetections = faceapi.resizeResults(detections, currentDisplaySize);
+    
+    // Clear canvas
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw face detections - no need to modify this as the canvas is already mirrored with CSS
     faceapi.draw.drawDetections(canvas, resizedDetections);
 
     // Update debug info
@@ -480,21 +489,30 @@ function processClosestFace(detections, displaySize) {
   const box = closestFace.box;
   updateDebugInfo(`Faces detected: ${detections.length} | Face: x=${Math.round(box.x)}, y=${Math.round(box.y)}, w=${Math.round(box.width)}, h=${Math.round(box.height)}`);
   
-  // Check if face is near any edge
-  checkFaceAtEdge(box, displaySize);
+  // Adjust x position for mirrored video when checking edges
+  const mirroredBox = {
+    x: displaySize.width - (box.x + box.width),
+    y: box.y,
+    width: box.width,
+    height: box.height
+  };
+  
+  // Check if face is near any edge using the mirrored coordinates
+  checkFaceAtEdge(mirroredBox, displaySize);
 
   // Update emoji position based on face position
-  updateEmojiPosition(box, displaySize);
+  updateEmojiPosition(mirroredBox, displaySize);
 }
 
 /**
  * Check if face is near any edge and notify server
- * @param {Object} box - Face detection box
+ * @param {Object} box - Face detection box (already adjusted for mirroring)
  * @param {Object} displaySize - Current display dimensions
  */
 function checkFaceAtEdge(box, displaySize) {
   const edgeThreshold = CONFIG.FACE_DETECTION.EDGE_THRESHOLD;
   
+  // Note: box coordinates are already adjusted for mirroring in processClosestFace
   if (box.x < edgeThreshold) {
     state.socket.emit('face_at_edge', {
       displayId: state.displayId,
@@ -514,7 +532,7 @@ function checkFaceAtEdge(box, displaySize) {
 
 /**
  * Update emoji position based on face position
- * @param {Object} box - Face detection box
+ * @param {Object} box - Face detection box (already adjusted for mirroring)
  * @param {Object} displaySize - Current display dimensions
  */
 function updateEmojiPosition(box, displaySize) {

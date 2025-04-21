@@ -1,6 +1,5 @@
 # Models folders - face detection models
-/models/
-/public/models/
+
 
 # Node.js dependencies
 /node_modules/
