@@ -426,6 +426,9 @@ function initializeFaceDetection() {
   const emojiHeight = elements.emoji.offsetHeight;
   elements.emoji.style.transform = `translate(${(state.emojiContainer.clientWidth - emojiWidth) / 2}px, ${(state.emojiContainer.clientHeight - emojiHeight) / 2}px)`;
   
+  // Initially hide the emoji until a face is detected
+  elements.emoji.style.display = 'none';
+  
   // Start face detection loop
   state.faceDetectionInterval = setInterval(detectFaces, 100);
 }
@@ -457,20 +460,43 @@ async function detectFaces() {
     // Clear canvas
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw face detections - no need to modify this as the canvas is already mirrored with CSS
-    faceapi.draw.drawDetections(canvas, resizedDetections);
+    // Don't draw face detections - removing the blue box
+    // faceapi.draw.drawDetections(canvas, resizedDetections);
 
     // Update debug info
     updateDebugInfo(`Faces detected: ${resizedDetections.length}`);
 
-    // Process closest face if any
+    // Process largest face if any
     if (resizedDetections.length > 0) {
-      processClosestFace(resizedDetections, currentDisplaySize);
+      // Find the largest face (closest to camera)
+      const largestFace = findLargestFace(resizedDetections);
+      
+      // Process only the largest face
+      processClosestFace([largestFace], currentDisplaySize);
+      
+      // Show emoji when faces are detected
+      elements.emoji.style.display = 'block';
+    } else {
+      // Hide emoji when no faces are detected
+      elements.emoji.style.display = 'none';
     }
   } catch (err) {
     console.error('Error in face detection:', err);
     updateDebugInfo(`Error: ${err.message}`);
   }
+}
+
+/**
+ * Find the largest face in the detections array (closest to camera)
+ * @param {Array} detections - Array of detected faces
+ * @return {Object} - The largest face detection
+ */
+function findLargestFace(detections) {
+  return detections.reduce((largest, current) => {
+    const currentArea = current.box.width * current.box.height;
+    const largestArea = largest.box.width * largest.box.height;
+    return currentArea > largestArea ? current : largest;
+  });
 }
 
 /**
